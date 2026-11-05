@@ -168,3 +168,7 @@ source read on 6 November 2026 (`service.py`, `main.py`, `models.py`).
   verification, imports the backend package unchanged, and must never be mistaken for a backend component or a
   demo of live research.
 - `.env.mock` ships so `npm run dev:mock` works out of the box; `.env` (real settings) is ignored by git.
+
+- **Visual theme (6 November 2026, after the verification runs):** the interface was restyled to a minimal black theme
+  by editing `src/styles/global.css` and the favicon only. Component markup, behaviour and copy are unchanged, so the
+  verification results above still hold; the screenshots in `docs/screenshots/` show the earlier navy theme.

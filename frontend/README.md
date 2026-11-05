@@ -172,9 +172,9 @@ src/
   hooks/      usePolling, useCase, useProgram, health context
   lib/        router, session storage, money/date formatting, state metadata, facts, timeline, toasts
   pages/      Home, Apply, Status, Account, OperatorGate, OperatorQueue, OperatorCase, NotFound
-  styles/     global.css (dark navy workspace, cyan/green highlights)
+  styles/     global.css (minimal black theme; colour appears only where it carries status meaning)
 dev/          stub_backend_harness.py (verification harness, see above)
-docs/screenshots/  walkthrough captured in mock mode
+docs/screenshots/  walkthrough captures from the verification runs (taken before the black restyle; behaviour unchanged)
 ```
 
 `node_modules/` and `dist/` are not part of the handback.
