@@ -174,7 +174,6 @@ src/
   pages/      Home, Apply, Status, Account, OperatorGate, OperatorQueue, OperatorCase, NotFound
   styles/     global.css (minimal black theme; colour appears only where it carries status meaning)
 dev/          stub_backend_harness.py (verification harness, see above)
-docs/screenshots/  walkthrough captures from the verification runs (taken before the black restyle; behaviour unchanged)
 ```
 
 `node_modules/` and `dist/` are not part of the handback.

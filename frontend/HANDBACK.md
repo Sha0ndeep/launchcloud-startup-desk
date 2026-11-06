@@ -31,8 +31,7 @@ the program row) and never written.
 7. `dev/stub_backend_harness.py`: runs the unmodified backend with a stub researcher (the seam the backend's own
    tests use) so enrollment flows can be exercised without a Crustdata key. Labeled; not a backend change.
 
-Run instructions, environment variables and the mock scenarios are in `README.md`. Screenshots are in
-`docs/screenshots/` (01–10 mock mode; 11–14 real backend; 15–21 real backend code with the stub researcher).
+Run instructions, environment variables and the mock scenarios are in `README.md`.
 
 ## Build-check results
 
@@ -171,4 +170,4 @@ source read on 6 November 2026 (`service.py`, `main.py`, `models.py`).
 
 - **Visual theme (6 November 2026, after the verification runs):** the interface was restyled to a minimal black theme
   by editing `src/styles/global.css` and the favicon only. Component markup, behaviour and copy are unchanged, so the
-  verification results above still hold; the screenshots in `docs/screenshots/` show the earlier navy theme.
+  verification results above still hold.

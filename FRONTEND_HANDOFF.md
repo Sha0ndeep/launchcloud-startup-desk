@@ -38,6 +38,6 @@ Build a polished React + TypeScript + Vite interface with these flows:
 
 ## Completion and handback
 
-Verify the UI against the actual backend if reachable. Run TypeScript/build checks. Return your changed files or a frontend-only git commit, exact run commands, required public environment variables, screenshots if possible, and any contract mismatches. Do not include node_modules, secrets, build outputs or fictional claims about integration tests you did not run.
+Verify the UI against the actual backend if reachable. Run TypeScript/build checks. Return your changed files or a frontend-only git commit, exact run commands, required public environment variables, and any contract mismatches. Do not include node_modules, secrets, build outputs or fictional claims about integration tests you did not run.
 
 Start by creating the typed client and layouts using the supplied API contract; then implement application submission, verification, reply, queue and credit-consumption flows in that order.

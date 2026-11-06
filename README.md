@@ -11,8 +11,6 @@ an account with a usable credit balance.
 and suggest quote-backed facts; deterministic backend code controls eligibility, duplicate prevention, budgets,
 and every grant or debit.
 
-![Operator view showing automatic clarification in progress](docs/images/automatic-clarification.jpg)
-
 > This is a demonstration: the mailbox is simulated, applicant facts are declarations, and promotional credits
 > exist in a local ledger. Company research corroborates claims; it is not independently verified payroll,
 > funding, legal authority, or a production billing integration.
@@ -131,15 +129,7 @@ corroboration. The backend checks:
 The initial program allocation is **$50,000**. Same-domain applications link to an existing benefit instead
 of receiving a second grant. Actual balances always come from the backend.
 
-## Record a two-minute demo
-
-Use the [complete video script](docs/DEMO_VIDEO_SCRIPT.md) for exact narration, copyable inputs, a shot list,
-and the catalogue of workflow, validation and provider-failure outcomes. The
-[rehearsal output](docs/DEMO_EXPECTED_OUTPUTS.json) records an offline run using explicitly synthetic research.
-
-The main story is: **apply → research → automatic clarification → confirmed correction → enrollment → $499**.
-A separate case shows a disagreement that persists after clarification and only then reaches the operator.
-Company domains may be real; all test applicant declarations must remain clearly labeled as synthetic.
+## Frontend development fixtures
 
 For predictable frontend-only scenarios:
 
@@ -201,7 +191,6 @@ $1 debit, and ledger reconciliation. It does not verify account billing or prove
 | `frontend/` | Applicant and operator interface, explicit mock client, and verification harness. |
 | `integration/` | Shared TypeScript contract and OpenAPI snapshot. |
 | `run.py`, `start.cmd` | Local setup and process supervision. |
-| `docs/` | Demo recording script, expected outputs and current screenshot. |
 | [API_CONTRACT.md](API_CONTRACT.md) | Endpoint/authentication rules and backward-compatible extensions. |
 | [IMPROVEMENTS.md](IMPROVEMENTS.md) | Implemented roadmap scope, bounds, verification and remaining work. |
 | [backend/README.md](backend/README.md) | Backend development and operational details. |

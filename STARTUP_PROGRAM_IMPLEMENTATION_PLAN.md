@@ -230,7 +230,7 @@ Times are elapsed from coding start. Build the first complete path before expand
 | 4:30–5:30 | Restart recovery, grant concurrency, unknown delivery handling, bounded API retries | Kill/restart and concurrent submissions do not double-credit or lose cases |
 | 5:30–6:30 | Case UI polish, audit/report export, representative scenario checks, test-recipient messaging | Sources, limits and final actions are visible and inspectable |
 | 6:30–7:15 | Freeze feature scope, fix blocking failures, fresh-input rehearsal and README/diagram | An unseen domain reaches a supported outcome without editing code/data |
-| 7:15–8:00 | Record two-minute demo, verify repo/video/diagram access, submit | All required links work in a private window; backup video is ready |
+| 7:15–8:00 | Final repository, documentation and access verification | Repository and documentation links are accessible |
 
 For a four-person team, human workstreams can be UI/applicant experience, research/evidence, workflow/ledger, and integration/QA. Agree on shared schemas and event contracts at the start. This is a team allocation suggestion, not a requirement for multiple model agents.
 
@@ -265,22 +265,7 @@ Track: correctly completed applications, wrong approvals, wrong declines, applic
 
 The initial scenario suite proves workflow behavior, not population coverage or fraud-detection accuracy. Run 20–30 representative independently labeled applications when available and report counts, sampling method and limitations. Include bootstrapped and database-missing companies; do not benchmark only recognizable funded companies or invented successful fixtures.
 
-## 15. Two-minute demonstration
-
-Suggested sequence:
-
-- 0–15 seconds: customer request and active policy. “Run our startup program and issue benefits within these rules.”
-- 15–40: submit an unfamiliar application; show live research, evidence provenance and a missing fact accurately recognized.
-- 40–65: applicant receives a targeted request through the controlled inbox and supplies permitted evidence; label demo/fixture documents clearly.
-- 65–90: agent reevaluates, enrolls and creates a product-credit receipt. Applicant uses the test product and the balance decreases correctly.
-- 90–110: duplicate/retry or worker restart; show one grant and the same resulting balance. Use a separate test application rather than fabricating real company facts.
-- 110–120: show a genuine exception with the unresolved question and the actual cost/decision log.
-
-Pre-recorded/replayed tool results must be labeled. A fresh request must be supported; cached data can speed repeated known calls but the product cannot depend on a preselected company producing a predetermined verdict. Separate real public facts, fictional applicant declarations and simulated external integrations in both the UI and README.
-
-During the event, messages must go only to team/organizer-controlled recipients, following the handbook. Use an allowlist enforced in the sender adapter, not a frontend checkbox.
-
-## 16. Deliverables and definition of done
+## 15. Deliverables and definition of done
 
 - Working applicant-to-enrollment application with persistent state.
 - Program policy and explicit accepted-evidence assumptions.
@@ -290,11 +275,11 @@ During the event, messages must go only to team/organizer-controlled recipients,
 - Operator exception queue; ordinary cases require no operator approval.
 - Demonstrated duplicate prevention, budget enforcement and restart recovery.
 - README covering buyer/job, actual supported scope, data limits, run instructions, approaches considered, tests and future work.
-- Architecture diagram, public product repo and accessible two-minute video.
+- Architecture diagram and public product repository.
 
 Do not claim production readiness, complete startup coverage, verified payroll/funding from a provider record, proven document authenticity from OCR, or guaranteed low operator involvement without measurement.
 
-## 17. Follow-on work after the hackathon
+## 16. Follow-on work after the hackathon
 
 Validate demand with program operators and actual anonymized applications. Measure where automation fails before extending features. Next integrations: official partner rosters/registries where permitted, stronger document/issuer verification, real billing grants with idempotency and reconciliation, production email, multi-program policy administration and first-party product-usage milestone top-ups. Configure any recurring monitoring separately after permissions, freshness and cost are verified.
 
