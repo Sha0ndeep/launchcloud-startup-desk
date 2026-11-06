@@ -1,0 +1,27 @@
+{
+  "validation": "Offline rehearsal with explicitly synthetic research fixtures; no live calls.",
+  "cases": [
+    {
+      "scenario": "corrected",
+      "initial_state": "AWAITING_APPLICANT",
+      "final_state": "ENROLLED",
+      "balance_after_job_cents": 49900,
+      "second_consistent_application": "DUPLICATE_RESOLVED"
+    },
+    {
+      "scenario": "persistent",
+      "initial_state": "AWAITING_APPLICANT",
+      "final_state": "EXCEPTION"
+    },
+    {
+      "scenario": "declined",
+      "initial_state": "DECLINED",
+      "final_state": "DECLINED"
+    },
+    {
+      "scenario": "budget",
+      "initial_state": "BUDGET_WAITING",
+      "final_state": "BUDGET_WAITING"
+    }
+  ]
+}

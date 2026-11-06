@@ -1,178 +1,230 @@
 # LaunchCloud Startup Desk
 
-A startup-program operations agent built at ContextCon (IIT Kanpur, 6 November 2026). A fictional SaaS
-provider, LaunchCloud, offers **$500 of promotional product credit** to eligible startups. Applications go in;
-mailbox verification, company research, deterministic policy checks, applicant information requests, operator
-exception handling and a working product-credit ledger come out. The backend owns every decision and balance;
-the frontend records what people declare and shows what the backend returns.
+**Research startup applications, clarify discrepancies automatically, and issue auditable promotional credits.**
 
-Everything here runs on one laptop. The mailbox is a labeled simulation, declarations are labeled as
-declarations, and nothing claims to be independently verified payroll or funding.
+LaunchCloud is a local startup-program operations demo built at ContextCon, IIT Kanpur. A fictional SaaS
+provider offers **$500 in promotional product credits** to eligible startups. The app gathers company research,
+compares it with applicant declarations, asks targeted questions, evaluates explicit policy rules, and activates
+an account with a usable credit balance.
 
-## Repository layout
+**Applicants clarify first. Operators handle conflicts that remain unresolved.** Groq can prioritize research
+and suggest quote-backed facts; deterministic backend code controls eligibility, duplicate prevention, budgets,
+and every grant or debit.
 
-| Path | What it is |
-| --- | --- |
-| `backend/` | Python 3.12+ FastAPI API, SQLite persistence, durable job worker, Crustdata research adapter, policy engine, credit ledger. See [backend/README.md](backend/README.md). |
-| `frontend/` | React + TypeScript + Vite interface for applicants and operators. See [frontend/README.md](frontend/README.md) and [frontend/HANDBACK.md](frontend/HANDBACK.md). |
-| `integration/api-types.ts` | Shared TypeScript types for the HTTP contract, imported by the frontend. |
-| `API_CONTRACT.md` | The HTTP contract (v1) the two sides were built against. |
-| `FRONTEND_HANDOFF.md` | The brief the frontend was built from. |
-| `STARTUP_PROGRAM_IMPLEMENTATION_PLAN.md` | The overall product and engineering plan. |
+![Operator view showing automatic clarification in progress](docs/images/automatic-clarification.jpg)
 
-## Run it locally
+> This is a demonstration: the mailbox is simulated, applicant facts are declarations, and promotional credits
+> exist in a local ledger. Company research corroborates claims; it is not independently verified payroll,
+> funding, legal authority, or a production billing integration.
 
-The roadmap implementation is described in [IMPROVEMENTS.md](IMPROVEMENTS.md): Groq candidate extraction,
-bounded adaptive investigation, evidence provenance, immutable decision snapshots and ledger reconciliation.
+## What it does
 
-### Windows quick start
+- **Applicant workflow:** application, simulated mailbox challenge, status tracking, structured replies, and JSON export.
+- **Crustdata research:** company enrichment by domain, available founding/headcount/funding observations, and
+  targeted public-web searches for missing or conflicting facts.
+- **Bounded investigation:** domain checks, relevant follow-up queries, a 24-hour response cache, call/spend
+  limits, deadlines, and durable retries. Tool records include purpose, round, latency, status and estimated cost.
+- **Automatic clarification:** the first conflict generates a bundled request. Corrections are re-evaluated
+  automatically; unanswered or unrelated topics remain pending. Persistent conflicts reach the operator.
+- **Groq-assisted replies:** candidate numeric facts require strict validation and exact supporting quotes.
+  Applicants review and re-attest before structured corrections change the case.
+- **Evidence and decisions:** declarations and provider observations remain distinct, with source references,
+  effective/retrieval dates and immutable evaluation snapshots.
+- **Operator desk:** queue, evidence comparison, decision history, research retry, and reasoned exception resolution.
+- **Credit ledger:** one benefit per company/domain, transactional budget checks, idempotent usage, receipts,
+  and balance reconciliation. A sample API job demonstrates **$500.00 → $499.00**.
 
-With Python 3.12+ and Node.js 22.12+ installed, double-click `start.cmd`, or run from PowerShell:
+## Workflow
+
+```mermaid
+flowchart TD
+    A[Application] --> B[Simulated mailbox verification]
+    B --> C[Bounded Crustdata investigation]
+    C --> D[Deterministic policy evaluation]
+    D -->|Missing or conflicting facts| E[Automatic applicant clarification]
+    E -->|Confirmed reply| D
+    D -->|Conflict persists after clarification| F[Operator review with recorded reasons]
+    D -->|Eligible and allocation available| G[One promotional grant]
+    G --> H[Product account and credit usage]
+    D -->|Supported failing rule| I[Declined with explanation]
+    D -->|Allocation exhausted| J[Budget hold]
+```
+
+A source disagreement is a request for clarification, not an accusation. Missing funding stays **unknown**,
+never zero. Two automatic clarification rounds may introduce new conflict topics; ordinary replies do not
+require an operator. Cross-domain identity collisions cannot be waived into a second benefit.
+
+## Quick start
+
+**Requirements:** Python **3.12+**, Node.js **22.12+**, npm, and Git. Verified locally with Python 3.13.7 and
+Node.js 22.20.0. Internet access is required to install dependencies and call live providers.
 
 ```powershell
+git clone https://github.com/Sha0ndeep/launchcloud-startup-desk.git
+cd launchcloud-startup-desk
 python run.py
 ```
 
-The launcher creates an isolated `.venv`, installs missing dependencies, and starts the real API, durable
-worker and frontend together. It opens http://127.0.0.1:5173 after both HTTP servers are ready. Keep the
-terminal open; Ctrl+C stops all three processes. Logs are in `.local/logs/`. If either port 8000 or 5173 is
-occupied, the launcher reports it without stopping another application's process. Existing dependencies can
-be refreshed with `python run.py --install`; use `--no-browser` to skip opening a browser. The launcher also
-works on macOS/Linux.
+On macOS/Linux, use `python3 run.py` if your interpreter is named `python3`. On Windows you can also
+double-click **start.cmd**.
 
-If a LaunchCloud API **and its worker** are already running on this machine, connect the frontend to them
-with `python run.py --reuse-api`. This checks API health and starts only the frontend; stopping the launcher
-preserves the existing backend processes. For a separate backend, use `python run.py --api-port 8001`
-and set `DATABASE_PATH` to a different SQLite file in the launching shell.
+The launcher creates `.venv`, installs missing backend/frontend dependencies, starts the **API, durable worker,
+and frontend**, then opens **http://127.0.0.1:5173**. Keep it running; **Ctrl+C** stops the services it started.
+API documentation is at **http://127.0.0.1:8000/docs**. Logs are stored in `.local/logs/`.
 
-The operator token is `demo-operator` unless you set `OPERATOR_TOKEN` in the launching shell. The API and
-worker inherit the same shell configuration and database path. To enable live research, set
-`CRUSTDATA_API_KEY` privately in that shell before launching. No key is needed to explore the interface,
-submit applications, use the simulated mailbox, or inspect research holds. Eligible cases remain held until
-live research is configured; this launcher does not enable frontend fixtures or stub research.
-
-Verified on Windows with Python 3.13.7 and Node.js 22.20.0: all 20 backend tests, frontend typecheck,
-production build and lint pass. The separate commands below remain available for development.
-
-### Manual setup
-
-Prerequisites: Python 3.12 or newer (tested with 3.14.8) and Node.js 22.12 or newer (tested with 24.19).
-All commands run from the repository root. The backend reads configuration from the shell and the git-ignored root `.env.local`; `backend/.env.example` lists the variables.
-
-Install the backend dependencies once:
-
-```bash
-python3 -m venv .venv && . .venv/bin/activate && pip install -r backend/requirements.txt
-```
-
-Terminal 1, the API (port 8000):
-
-```bash
-DEMO_MODE=true OPERATOR_TOKEN=demo-operator python -m uvicorn backend.main:create_app --factory --host 127.0.0.1 --port 8000
-```
-
-Terminal 2, the worker. It is a separate process and is required; without it verified cases stay queued:
-
-```bash
-DEMO_MODE=true OPERATOR_TOKEN=demo-operator python -m backend.worker
-```
-
-Terminal 3, the frontend (port 5173, which is the backend's default CORS allowlist):
-
-```bash
-cd frontend && npm install && npm run dev
-```
-
-Open http://localhost:5173. The operator pages ask for the operator token in a session-only field; the demo
-default is `demo-operator`. Change it with `OPERATOR_TOKEN` and never publish it on a public server.
-
-Optional environment variables:
-
-| Variable | Effect |
+| Command | Purpose |
 | --- | --- |
-| `CRUSTDATA_API_KEY` | Enables live company research. Without it the backend reports `research_mode: unconfigured` and holds every otherwise-eligible case on its `research` check until an operator restores research and requeues it. No synthetic provider data is ever inserted. |
-| `GROQ_API_KEY` and `GROQ_MODEL` | Optional Groq planning and quote-backed extraction previews. Model defaults to `openai/gpt-oss-120b`. Applicants review and confirm structured candidates before any facts change. |
-| `DATABASE_PATH` | SQLite file, default `backend/data/launchcloud.sqlite3` (created on first run). |
-| `CORS_ORIGINS` | Comma-separated frontend origins, default `http://localhost:5173,http://127.0.0.1:5173`. |
+| `python run.py --install` | Refresh Python requirements and locked npm dependencies. |
+| `python run.py --no-browser` | Start without opening a browser. |
+| `python run.py --api-port 8001` | Run this checkout's API on 8001 and connect the frontend to it. |
+| `python run.py --reuse-api` | Start only the frontend against an already-running API and worker. |
 
-Secrets stay in the shell or git-ignored root `.env.local`. The frontend never reads the Crustdata key, model keys or the operator token from
-its build; only `VITE_`-prefixed public variables reach the bundle (`frontend/.env.example`).
+Port 5173 is fixed to match the default CORS allowlist. The launcher reports occupied ports rather than
+stopping another application. When running a second backend, also select a separate `DATABASE_PATH`.
+`--reuse-api` does not upgrade the existing server's code or restart its worker.
 
-## Demo walkthrough
+## Configure the integrations
 
-1. **Apply** at `/apply`. Use a work email on the company domain you enter.
-2. **Verify the mailbox** at `/status`. In demo mode the six-digit code appears in the labeled simulated
-   mailbox on the same page. It proves mailbox control, not legal authority.
-3. **Research and evaluation** run in the worker. The status page polls and shows per-rule outcomes, evidence
-   with provenance dates, and the activity timeline.
-4. **Information request and reply.** Missing or conflicting facts produce one bundled request; the structured
-   reply form resumes the case without an operator. Missing funding stays unknown, never zero.
-5. **Enrollment and credits.** An eligible case gets one grant receipt. `/account` shows the server-reported
-   balance and **Run sample API job ($1.00)**, which consumes credit and proves issuance had an effect.
-6. **Operator desk** at `/operator`: queue by state, allocation remaining, exceptions. A case page shows checks,
-   facts, evidence, messages, research tool calls with estimated cost, and exception resolution with a
-   mandatory reason. There is no routine approve button; ordinary cases need no operator.
+Copy `backend/.env.example` to **.env.local in the repository root**, then enter your own values privately.
+`.env.local` is ignored by Git and is loaded by the launcher, API, and worker. Existing shell variables take
+precedence. The example file itself is not loaded automatically.
 
-Same-domain duplicates link to the existing grant. A provider identity collision across domains cannot be
-waived and must be reconciled or declined.
+```dotenv
+CRUSTDATA_API_KEY=your_crustdata_key
+GROQ_API_KEY=your_groq_key
+GROQ_MODEL=openai/gpt-oss-120b
+DEMO_MODE=true
+OPERATOR_TOKEN=choose_a_local_operator_token
+DATABASE_PATH=backend/data/launchcloud.sqlite3
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
 
-## Frontend-only fixture mode and verification harness
+| Setting | Behavior |
+| --- | --- |
+| `CRUSTDATA_API_KEY` | Enables live company enrichment and targeted web search. Without it, otherwise-eligible applications remain held on research. |
+| `GROQ_API_KEY` | Enables optional investigation prioritization and candidate extraction previews. Structured replies work without it. |
+| `GROQ_MODEL` | Defaults to `openai/gpt-oss-120b`. No silent switch to another provider or paid model on failure. |
+| `OPERATOR_TOKEN` | Session-entered operator credential. Defaults to `demo-operator` for local demonstrations. |
+| `DATABASE_PATH` | SQLite database; the API and worker must use the same path. |
+| `CORS_ORIGINS` | Comma-separated frontend origins. |
+| `DEMO_MODE` | Must remain `true`: a production email adapter is not implemented. |
 
-- `cd frontend && npm run dev:mock` runs the interface against an in-browser fixture client with a permanent
-  "fixture data" banner. Research outcomes are chosen by the domain you apply with (see `frontend/README.md`).
-- `PYTHONPATH=. DATABASE_PATH=/tmp/launchcloud-stub.sqlite3 python frontend/dev/stub_backend_harness.py`
-  runs the unmodified backend and worker with a stub researcher injected through the seam the backend's own
-  tests use, so enrollment, conflict, duplicate and collision flows can be exercised without a Crustdata key.
-  Every stub observation is labeled as such.
+No credentials are included in this repository. Keep provider keys in server configuration, never in
+`VITE_` variables or frontend code. Groq account quotas, pricing and Free-plan billing status must be checked
+in your own account; this project does not claim unlimited or guaranteed free model usage.
 
-## Tests and checks
+## Demo policy
 
-| Check | Command | Result on 6 November 2026 |
-| --- | --- | --- |
-| Backend unit tests | `python -m unittest discover -s backend/tests -v` | 43 passed (Python 3.13.7, roadmap implementation) |
-| Frontend typecheck | `cd frontend && npm run typecheck` | pass |
-| Frontend lint | `cd frontend && npm run lint` | pass |
-| Frontend build | `cd frontend && npm run build` | pass |
+Policy v1 accepts timestamped applicant declarations for selected facts, with external observations used as
+corroboration. The backend checks:
 
-The backend tests cover issuance, duplicate prevention, budget enforcement, job leases and restart recovery.
-[frontend/HANDBACK.md](frontend/HANDBACK.md) records the browser verification of each screen against the real
-backend and against the stub harness, with screenshots in `frontend/docs/screenshots/`, plus the list of
-contract-versus-backend differences.
+| Criterion | Requirement |
+| --- | --- |
+| Mailbox | Complete the explicitly simulated company-email challenge. |
+| Authority and attestation | Record the applicant's declarations. |
+| Product | Software product. |
+| Founding year | 2021 or later, and not in the future. |
+| Full-time headcount | Fewer than 50. |
+| Total funding | Below US$10,000,000; missing is unknown. |
+| Benefit | One $500 promotional grant, subject to identity checks and allocation. |
 
-The original build did not test live providers. The roadmap implementation has now passed an opt-in live
-Crustdata and Groq check: a clean enrollment, a founding-year conflict held for operator review, quote-backed
-candidate extraction, and an idempotent debit to $499. These used synthetic applicant declarations and a
-temporary database. Groq account billing/free-plan status has not been verified. See [IMPROVEMENTS.md](IMPROVEMENTS.md).
+The initial program allocation is **$50,000**. Same-domain applications link to an existing benefit instead
+of receiving a second grant. Actual balances always come from the backend.
 
-## Supported scope and honest limits
+## Record a two-minute demo
 
-- One provider, one program, one policy version (v1), one shared operator token, applicant sessions.
-- Policy v1 explicitly accepts named applicant declarations for founding year, headcount, funding and product
-  classification. Decisions read "accepted under policy v1", never "independently verified".
-- Research is read-only Crustdata company enrichment and targeted web search with a 24-hour cache, a bounded
-  per-application estimated spend, and at most three durable attempts for transient errors. Costs shown are
-  estimates, not billing receipts.
-- The mailbox is simulated and labeled. Non-demo mode deliberately fails until a real sender exists; no real
-  recipients are contacted.
-- Not implemented: file uploads or OCR, reissuing expired verification codes, fault-injection endpoints, the
-  plan's WITHDRAWN and EXPIRED states, multi-tenant operation, production email, remote billing reconciliation,
-  operator login and roles.
-- This is a local demonstration, not a production fraud-verification service, and it makes no claim about
-  startup coverage or operator-involvement rates without measurement.
+Use the [complete video script](docs/DEMO_VIDEO_SCRIPT.md) for exact narration, copyable inputs, a shot list,
+and the catalogue of workflow, validation and provider-failure outcomes. The
+[rehearsal output](docs/DEMO_EXPECTED_OUTPUTS.json) records an offline run using explicitly synthetic research.
 
-## Approaches considered
+The main story is: **apply → research → automatic clarification → confirmed correction → enrollment → $499**.
+A separate case shows a disagreement that persists after clarification and only then reaches the operator.
+Company domains may be real; all test applicant declarations must remain clearly labeled as synthetic.
 
-The plan weighed and chose: an attestation-accepting promotional policy over a strict verified program for the
-demo (same engine, one mode implemented fully); a SQLite jobs table with leases over Redis or Celery; a direct
-Crustdata HTTP adapter with narrow fields over reparsing MCP output; a database-backed demo inbox over a real
-email provider during the event; simple polling over websockets; and one orchestrating workflow with typed
-tools over multiple named model agents. The reasoning is in
-[STARTUP_PROGRAM_IMPLEMENTATION_PLAN.md](STARTUP_PROGRAM_IMPLEMENTATION_PLAN.md).
+For predictable frontend-only scenarios:
 
-## Future work
+```powershell
+cd frontend
+npm ci
+npm run dev:mock
+```
 
-Measure where automation fails on real anonymized applications before extending features. Then: document
-uploads with issuer verification, official registry and partner-roster lookups where permitted, real billing
-grants with idempotency and reconciliation, production email with an enforced allowlist, verification-code
-reissue, multi-program policy administration, operator accounts, and a frontend summary of research spend on
-the queue once the backend exposes it.
+This mode displays a permanent **fixture data** banner. It does not contact Crustdata or Groq and does not
+establish real provider behavior. Stop another server using port 5173 before starting it.
+See the [frontend guide](frontend/README.md) for fixture domains. The optional
+[stub-research harness](frontend/dev/stub_backend_harness.py) exercises real backend policy code with labeled
+synthetic observations.
+
+## Validation
+
+From the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s backend/tests -v
+cd frontend
+npm run build
+npm run lint
+```
+
+On macOS/Linux, the virtual-environment interpreter is `.venv/bin/python`.
+
+| Check | Result verified locally |
+| --- | --- |
+| Backend tests | **43 passed**, with fake providers and temporary databases. |
+| Frontend production build | Pass, including strict TypeScript checks. |
+| Frontend lint | Pass. |
+| Live Crustdata | Company enrichment and targeted web search succeeded in opt-in checks. |
+| Live Groq | Quote-backed extraction and bounded planning succeeded in opt-in checks. |
+
+Tests cover automatic clarification, resolved and persistent conflicts, partial/unrelated replies, company
+mismatches, quote grounding, provider failure handling, budgets, duplicates, identity collisions, leases,
+concurrent usage and immutable decision history. Unit tests consume no provider credits.
+
+An optional live smoke check uses your configured keys, bounded provider calls, synthetic applicant declarations
+and a temporary database:
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.live_check --live
+```
+
+The smoke check demonstrates a clean enrollment, clarification/persistent-conflict handling, one idempotent
+$1 debit, and ledger reconciliation. It does not verify account billing or prove company facts independently.
+
+## Architecture and repository layout
+
+**Frontend:** React 19, TypeScript, Vite, a typed API client, tab-scoped applicant/operator sessions and polling.
+**Backend:** FastAPI, Pydantic, SQLite, a durable worker, Crustdata HTTP integration and optional Groq calls.
+
+| Path | Contents |
+| --- | --- |
+| `backend/` | API, policy, investigation, automatic clarification, persistence, provider integration and tests. |
+| `frontend/` | Applicant and operator interface, explicit mock client, and verification harness. |
+| `integration/` | Shared TypeScript contract and OpenAPI snapshot. |
+| `run.py`, `start.cmd` | Local setup and process supervision. |
+| `docs/` | Demo recording script, expected outputs and current screenshot. |
+| [API_CONTRACT.md](API_CONTRACT.md) | Endpoint/authentication rules and backward-compatible extensions. |
+| [IMPROVEMENTS.md](IMPROVEMENTS.md) | Implemented roadmap scope, bounds, verification and remaining work. |
+| [backend/README.md](backend/README.md) | Backend development and operational details. |
+| [frontend/README.md](frontend/README.md) | Frontend development, routes, fixtures and client behavior. |
+
+Manual development uses three processes from the repository root: `python -m uvicorn backend.main:create_app
+--factory --host 127.0.0.1 --port 8000`, `python -m backend.worker`, and `npm run dev` from `frontend/`.
+Use the virtual environment for Python commands. The worker is required; verified applications otherwise stay
+queued. `/api/health` reports configuration readiness, and `/docs` contains the interactive API reference.
+
+## Scope and remaining work
+
+This is a single-program local prototype, not a production verification or billing service. It has a shared
+operator token rather than operator accounts and roles. Crustdata fields are provider observations; public
+search snippets remain leads. The model cannot approve, change policy, issue grants, or mutate balances.
+
+Not implemented: real email delivery, verification-code resend, uploads/OCR, official-registry/document
+verification, authenticated public-page retrieval, calibrated stale-evidence rules, multi-tenant operation,
+real billing reconciliation, and WITHDRAWN/EXPIRED application states. The mailbox challenge itself can expire.
+
+## Project history
+
+This repository builds on the original [LaunchCloud Startup Desk](https://github.com/shivamshaw23/launchcloud-startup-desk)
+from the ContextCon collaboration, preserving its Git history. This version adds Groq integration, bounded
+investigation, automatic clarification before operator escalation, richer provenance, decision snapshots,
+ledger reconciliation, Windows startup tooling and expanded tests.
