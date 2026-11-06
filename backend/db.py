@@ -18,6 +18,11 @@ def uid():
 
 SCHEMA = '''
 PRAGMA journal_mode=WAL;
+CREATE TABLE IF NOT EXISTS clarification_requests (
+ id TEXT PRIMARY KEY, application_id TEXT NOT NULL, fields_json TEXT NOT NULL,
+ answered_fields_json TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL,
+ created_at TEXT NOT NULL, answered_at TEXT
+);
 CREATE TABLE IF NOT EXISTS evidence_details (evidence_id TEXT PRIMARY KEY, details_json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS tool_call_details (tool_call_id TEXT PRIMARY KEY, details_json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS model_runs (
@@ -145,8 +150,8 @@ def evidence(c, app_id, field, value, kind, source_url=None, source_pointer=None
 
 
 def message(c, app_id, kind, subject, body, payload=None, direction='outbound'):
-    if kind == 'information_request' and direction == 'outbound':
-        previous = c.execute("SELECT subject,body FROM messages WHERE application_id=? AND kind='information_request' AND direction='outbound' ORDER BY rowid DESC LIMIT 1", (app_id,)).fetchone()
+    if kind in {'information_request', 'review_notice'} and direction == 'outbound':
+        previous = c.execute("SELECT subject,body FROM messages WHERE application_id=? AND kind=? AND direction='outbound' ORDER BY rowid DESC LIMIT 1", (app_id, kind)).fetchone()
         if previous and previous['subject'] == subject and previous['body'] == body:
             return
     c.execute('INSERT INTO messages VALUES (?,?,?,?,?,?,?,?)',

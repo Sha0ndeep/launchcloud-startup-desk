@@ -181,7 +181,7 @@ class Researcher:
                 except (RuntimeError, TypeError, ValueError) as error:
                     failure(error if isinstance(error, RuntimeError) else ResearchError('Invalid search response.'))
                     break
-        stop = ('research_limit' if any('limit' in e.lower() or 'deadline' in e.lower() for e in errors) else 'provider_failure') if errors else 'operator_conflict' if conflicts else 'applicant_declaration_required' if missing else 'sufficient_evidence'
+        stop = ('research_limit' if any('limit' in e.lower() or 'deadline' in e.lower() for e in errors) else 'provider_failure') if errors else 'clarification_required' if conflicts else 'applicant_declaration_required' if missing else 'sufficient_evidence'
         return {'status': 'partial' if errors else 'complete', 'configured': True, 'error': ' '.join(errors) or None,
             'retryable': retryable, 'retry_after_seconds': retry_after, 'stop_reason': stop,
             'rounds': max([p['round'] for p in plan]), 'plan': plan, 'planner_status': planner_status,

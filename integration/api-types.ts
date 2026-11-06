@@ -48,6 +48,7 @@ export interface Research {
   configured: boolean; error: string | null; retryable?: boolean; retry_after_seconds?: number;
 }
 export interface CaseResponse {
+  clarification?: {id: string; status: 'pending' | 'answered' | 'resolved'; fields: string[]; answered_fields: string[]; round: number; max_rounds: number; created_at: string; answered_at: string | null} | null;
   decisions?: Array<{id: string; policy_version: string; created_at: string; snapshot: {outcome: string; facts: unknown; checks: Check[]; operator_reason: string | null}}>;
   id: string; company_name: string; domain: string; work_email: string;
   state: ApplicationState; policy_version: string; email_verified: boolean;

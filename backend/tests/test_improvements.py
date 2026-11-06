@@ -86,20 +86,104 @@ class ImprovementTests(unittest.TestCase):
         self.assertEqual(len(self.calls), 2)
         self.assertIn('funding', self.calls[1][1]['query'])
 
-    def test_conflict_followup_stops_for_operator(self):
+    def test_conflict_followup_asks_applicant_before_operator(self):
         self.provider_year = 2024
         self.verified()
         self.service.run_one()
-        self.assertEqual(self.case()['state'], 'EXCEPTION')
-        self.assertEqual(self.case()['research']['stop_reason'], 'operator_conflict')
+        self.assertEqual(self.case()['state'], 'AWAITING_APPLICANT')
+        self.assertEqual(self.case()['research']['stop_reason'], 'clarification_required')
+        self.assertEqual(self.case()['clarification']['status'], 'pending')
         self.assertEqual(len(self.calls), 2)
 
     def test_wrong_company_domain_cannot_issue(self):
         self.provider_domain = 'other.com'
         self.verified()
         self.service.run_one()
-        self.assertEqual(self.case()['state'], 'EXCEPTION')
+        self.assertEqual(self.case()['state'], 'AWAITING_APPLICANT')
         self.assertIsNone(self.case()['grant'])
+
+    def test_correction_resolves_conflict_without_operator(self):
+        self.provider_year = 2024
+        self.verified()
+        self.service.run_one()
+        response = self.client.post(f'/api/applications/{self.app_id}/responses', headers=self.headers,
+            json={'facts': {'founding_year': 2024}, 'text': 'Corrected incorporation year.', 'attestation_accepted': True})
+        self.assertEqual(response.json()['state'], 'ENROLLED')
+        self.assertEqual(response.json()['clarification']['status'], 'resolved')
+        self.assertFalse(any(e['type'] == 'operator_resolution' for e in response.json()['events']))
+        self.assertEqual(len(self.calls), 2)
+
+    def test_reasserted_conflict_escalates_after_reply(self):
+        self.provider_year = 2024
+        self.verified()
+        self.service.run_one()
+        self.assertEqual(self.case()['state'], 'AWAITING_APPLICANT')
+        result = self.client.post(f'/api/applications/{self.app_id}/responses', headers=self.headers,
+            json={'facts': {'founding_year': 2025}, 'text': 'We still declare founding year 2025.', 'attestation_accepted': True}).json()
+        self.assertEqual(result['state'], 'EXCEPTION')
+        self.assertEqual(result['clarification']['status'], 'answered')
+        self.assertIsNone(result['grant'])
+
+    def test_operator_cannot_resolve_before_automatic_clarification(self):
+        self.provider_year = 2024
+        self.verified()
+        self.service.run_one()
+        response = self.client.post(f'/api/operator/applications/{self.app_id}/resolve', headers={'X-Operator-Token': 'demo-operator'},
+            json={'action': 'waive_conflict', 'reason': 'Attempting to skip the automatic clarification phase.'})
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.case()['state'], 'AWAITING_APPLICANT')
+
+    def test_unattested_correction_cannot_automatically_clear_conflict(self):
+        self.provider_year = 2024
+        self.verified()
+        self.service.run_one()
+        response = self.client.post(f'/api/applications/{self.app_id}/responses', headers=self.headers,
+            json={'facts': {'founding_year': 2024}, 'attestation_accepted': False})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.case()['facts']['founding_year'], 2025)
+        self.assertIsNone(self.case()['grant'])
+
+    def test_unrelated_reply_does_not_escalate_conflict(self):
+        self.provider_year = 2024
+        self.verified(funding_usd=None)
+        self.service.run_one()
+        result = self.client.post(f'/api/applications/{self.app_id}/responses', headers=self.headers,
+            json={'facts': {'funding_usd': 100000}, 'text': 'Funding supplied.', 'attestation_accepted': True}).json()
+        self.assertEqual(result['state'], 'AWAITING_APPLICANT')
+        self.assertEqual(result['clarification']['answered_fields'], [])
+
+    def test_research_retry_does_not_escalate_or_repeat_clarification(self):
+        self.provider_year = 2024
+        self.verified()
+        self.service.run_one()
+        request_id = self.case()['clarification']['id']
+        self.client.post(f'/api/operator/applications/{self.app_id}/retry', headers={'X-Operator-Token': 'demo-operator'})
+        self.service.run_one()
+        result = self.case()
+        self.assertEqual(result['state'], 'AWAITING_APPLICANT')
+        self.assertEqual(result['clarification']['id'], request_id)
+        self.assertEqual(len([m for m in result['messages'] if m['kind'] == 'information_request']), 1)
+
+    def test_partial_clarification_waits_for_other_conflict(self):
+        self.provider_year = 2024
+        self.verified(headcount=1)
+        # Cross the cap so both founding year and workforce count conflict.
+        original = self.researcher.transport
+        def handler(request):
+            response = self.provider(request)
+            if request.url.path == '/company/enrich':
+                payload = response.json()
+                payload[0]['matches'][0]['company_data']['headcount']['total'] = 100
+                return httpx.Response(200, json=payload)
+            return response
+        self.researcher.transport = httpx.MockTransport(handler)
+        self.service.run_one()
+        result = self.client.post(f'/api/applications/{self.app_id}/responses', headers=self.headers,
+            json={'facts': {'founding_year': 2024}, 'attestation_accepted': True}).json()
+        self.assertEqual(result['state'], 'AWAITING_APPLICANT')
+        self.assertIn('headcount', result['clarification']['fields'])
+        self.assertNotIn('headcount', result['clarification']['answered_fields'])
+        self.researcher.transport = original
 
     def test_permanent_provider_error_does_not_retry(self):
         self.http_status = 401

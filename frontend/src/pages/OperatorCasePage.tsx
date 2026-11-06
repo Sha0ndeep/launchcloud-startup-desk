@@ -133,8 +133,8 @@ export function OperatorCasePage({ applicationId, auth }: { applicationId: strin
             </Notice>
           )}
           {data.state === 'AWAITING_APPLICANT' && !researchCheckOpen && (
-            <Notice tone="warning" title="Waiting on the applicant" compact>
-              The case resumes automatically when the applicant replies. No operator action is required unless it becomes an exception.
+            <Notice tone="warning" title={data.clarification?.status === 'pending' ? 'Automatic clarification in progress' : 'Waiting on the applicant'} compact>
+              {data.clarification?.status === 'pending' ? 'The system has automatically requested conflict clarification. It will re-evaluate the reply before involving an operator.' : 'The case resumes automatically when the applicant replies. No operator action is required unless it becomes an exception.'}
             </Notice>
           )}
           {possiblyStalled && (

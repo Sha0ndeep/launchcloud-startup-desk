@@ -129,7 +129,7 @@ waived and must be reconciled or declined.
 
 | Check | Command | Result on 6 November 2026 |
 | --- | --- | --- |
-| Backend unit tests | `python -m unittest discover -s backend/tests -v` | 36 passed (Python 3.13.7, roadmap implementation) |
+| Backend unit tests | `python -m unittest discover -s backend/tests -v` | 43 passed (Python 3.13.7, roadmap implementation) |
 | Frontend typecheck | `cd frontend && npm run typecheck` | pass |
 | Frontend lint | `cd frontend && npm run lint` | pass |
 | Frontend build | `cd frontend && npm run build` | pass |

@@ -14,7 +14,7 @@ export function ResearchStatusCard({ research, actions }: { research: Research; 
           <span className="muted">{research.configured ? 'Provider configured' : 'No research provider configured'}</span>
         </div>
         <p>{meta.description}</p>
-        {research.stop_reason && <p><strong>Investigation stopped:</strong> {research.stop_reason.replaceAll('_', ' ')}</p>}
+        {research.stop_reason && <p><strong>Investigation stopped:</strong> {['operator_conflict', 'clarification_required'].includes(research.stop_reason) ? 'conflicting evidence found' : research.stop_reason.replaceAll('_', ' ')}</p>}
         {research.unresolved_facts && research.unresolved_facts.length > 0 && <p>Unresolved at investigation end: {research.unresolved_facts.join(', ')}. Search leads do not replace applicant declarations.</p>}
         {research.plan && research.plan.length > 0 && (
           <details><summary>Investigation plan · {research.rounds} {research.rounds === 1 ? 'round' : 'rounds'}</summary>

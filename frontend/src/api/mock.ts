@@ -33,7 +33,7 @@ import type {
 } from './types'
 import { TERMINAL_STATES } from '../lib/states'
 
-const STORAGE_KEY = 'launchcloud.mock.state.v2'
+const STORAGE_KEY = 'launchcloud.mock.state.v3'
 const OPERATOR_TOKEN = 'demo-operator'
 const POLICY_VERSION = 'v1'
 const BENEFIT_CENTS = 50_000
@@ -98,7 +98,7 @@ interface MockState {
 
 const CASE_FIELDS: ReadonlyArray<keyof CaseResponse> = [
   'id', 'company_name', 'domain', 'work_email', 'state', 'policy_version', 'email_verified', 'facts', 'checks',
-  'evidence', 'events', 'tool_calls', 'research', 'grant', 'account_id', 'created_at', 'updated_at',
+  'evidence', 'events', 'tool_calls', 'research', 'grant', 'account_id', 'created_at', 'updated_at', 'clarification',
 ]
 
 function nowIso() {
@@ -445,16 +445,27 @@ export class MockApiClient implements ApiClient {
 
     const failing = checks.filter((k) => k.status === 'FAIL')
     const needs = checks.filter((k) => k.status === 'NEEDS_INFORMATION')
+    if (conflicts.length === 0 && c.clarification) c.clarification.status = 'resolved'
     if (failing.length > 0) {
       this.setState(c, 'DECLINED', `Application does not meet: ${failing.map((k) => k.rule).join(', ')}`)
       this.message(c, 'decision', 'Startup program decision', failing.map((k) => k.reason).join('\n'))
     } else if (conflicts.length > 0 && !c.conflict_waiver) {
-      this.setState(c, 'EXCEPTION', conflicts.join('; '))
-      this.message(c, 'information_request', 'Clarification needed', conflicts.join('; '))
+      const topics = [...new Set(conflicts.map(reason => /funding/i.test(reason) ? 'funding_usd' : /founding/i.test(reason) ? 'founding_year' : /workforce/i.test(reason) ? 'headcount' : 'identity'))]
+      if (!c.clarification || c.clarification.status === 'resolved') {
+        c.clarification = {id: this.nextId('clarification'), status: 'pending', fields: topics, answered_fields: [], round: 1, max_rounds: 2, created_at: nowIso(), answered_at: null}
+        this.message(c, 'information_request', 'Please clarify your startup application', [...conflicts, ...needs.map(k => k.reason), 'We will automatically re-evaluate your reply; operator review is needed only if the conflict persists.'].join('\n'))
+      }
+      if (topics.every(field => c.clarification!.answered_fields.includes(field))) {
+        c.clarification.status = 'answered'
+        this.setState(c, 'EXCEPTION', 'Conflict persists after automatic clarification: ' + conflicts.join('; '))
+      } else {
+        this.setState(c, 'AWAITING_APPLICANT', 'Automatic clarification requested; operator review is not needed yet.')
+      }
     } else if (needs.length > 0) {
       this.setState(c, 'AWAITING_APPLICANT', 'Waiting for accepted missing information or restored research.')
       this.message(c, 'information_request', 'Information needed for your startup application', needs.map((k) => k.reason).join('\n'))
     } else {
+      if (c.clarification) c.clarification.status = 'resolved'
       this.issue(c)
     }
   }
@@ -647,6 +658,7 @@ export class MockApiClient implements ApiClient {
     if (c.state === 'RESEARCHING' || c.state === 'RESEARCH_QUEUED') throw http(409, 'Research is running. Wait for its information request before replying.')
 
     const changed = CORRECTABLE.filter((key) => facts[key] !== undefined && facts[key] !== null)
+    if (changed.length > 0 && !input.attestation_accepted) throw http(422, 'Re-confirm the eligibility attestation before submitting fact corrections.')
     for (const key of changed) {
       const value = facts[key]
       switch (key) {
@@ -673,6 +685,18 @@ export class MockApiClient implements ApiClient {
       this.addEvidence(c, { field: 'supporting_link', value: url, kind: 'APPLICANT_LINK', source_url: url, source_pointer: null, observed_at: null, note: 'Applicant-supplied link; content/authenticity has not been verified.' })
     }
     this.message(c, 'reply', 'Applicant response', text || 'Structured facts updated.', {}, 'inbound')
+    if (c.clarification?.status === 'pending') {
+      const terms: Record<string, RegExp> = {founding_year: /found|incorporat/i, headcount: /headcount|employee|contractor|workforce/i, funding_usd: /funding|raised|invest/i, identity: /./}
+      for (const field of c.clarification.fields) {
+        if ((input.attestation_accepted && changed.includes(field as CorrectableFact)) || (text.trim() && terms[field]?.test(text)) || (field === 'identity' && urls.length > 0)) {
+          if (!c.clarification.answered_fields.includes(field)) c.clarification.answered_fields.push(field)
+        }
+      }
+      if (c.clarification.fields.every(field => c.clarification!.answered_fields.includes(field))) {
+        c.clarification.status = 'answered'
+        c.clarification.answered_at = nowIso()
+      }
+    }
     c.conflict_waiver = null
     this.event(c, 'applicant_replied', 'Recorded accepted structured corrections and source links.')
     this.evaluate(c)

@@ -382,7 +382,7 @@ function InformationRequestCard({ data, auth, onCase, modelConfigured, onShowEvi
   const researchOnly = openChecks.length > 0 && openChecks.every((c) => c.rule === 'research') && requestedFacts(data.checks).size === 0
   return (
     <Card
-      title={researchOnly ? 'Waiting for program research' : 'Information requested'}
+      title={researchOnly ? 'Waiting for program research' : data.clarification?.status === 'pending' ? 'Automatic clarification requested' : 'Information requested'}
       tone={researchOnly ? 'info' : 'warning'}
       subtitle={
         researchOnly
@@ -391,6 +391,9 @@ function InformationRequestCard({ data, auth, onCase, modelConfigured, onShowEvi
       }
     >
       <div className="stack">
+        {data.clarification?.status === 'pending' && <Notice tone="info" title="We will re-evaluate your reply automatically">
+          Confirm or correct the requested facts and explain the discrepancy. An operator reviews the case only if the conflict persists after clarification.
+        </Notice>}
         {latestRequest ? <RequestBox message={latestRequest} /> : <p className="muted">The backend has not attached a message to this request; the checks below describe what is missing.</p>}
         <UnresolvedChecks data={data} onShowEvidence={onShowEvidence} statuses={['NEEDS_INFORMATION', 'CONFLICT']} />
         <ResearchHoldNotice data={data} />
@@ -404,15 +407,15 @@ function InformationRequestCard({ data, auth, onCase, modelConfigured, onShowEvi
 function ExceptionCard({ data, auth, onCase, modelConfigured, onShowEvidence }: StepProps) {
   const latestRequest = latestRequestMessage(data)
   return (
-    <Card title="Under operator review" tone="danger" subtitle="Nothing has been decided. The unresolved question is with a program operator.">
+    <Card title="Under operator review" tone="danger" subtitle="The discrepancy remained after automatic clarification and now needs a reasoned operator review.">
       <div className="stack">
         <p>{stateMeta('EXCEPTION').applicant}</p>
         {latestRequest && <RequestBox message={latestRequest} />}
         <UnresolvedChecks data={data} onShowEvidence={onShowEvidence} statuses={['CONFLICT', 'NEEDS_INFORMATION']} />
         <ResearchHoldNotice data={data} />
         <p className="muted">
-          An operator may ask you for clarification, record a reasoned waiver, or decline with reasons. You can add a clarification now: it is recorded for the operator
-          and the backend re-evaluates the case, but a conflict with provider records is resolved by the operator, not by your reply alone.
+          An operator may request additional evidence, record a reasoned waiver, or decline with reasons. Further corrections are still re-evaluated automatically;
+          evidence that remains inconsistent needs operator review.
         </p>
         <h3 className="section-title">Add a clarification (optional)</h3>
         <ReplyForm kase={data} auth={auth} modelConfigured={modelConfigured} onCase={onCase} context="clarification" />

@@ -30,7 +30,7 @@ interface Props {
 
 const COPY = {
   request: { submit: 'Send reply', footnote: 'The case resumes automatically; no operator action is needed for an ordinary reply.' },
-  clarification: { submit: 'Send clarification', footnote: 'Recorded for the operator and re-evaluated by the backend; only an operator can resolve a conflict with provider records.' },
+  clarification: { submit: 'Send clarification', footnote: 'The backend re-evaluates corrections automatically. An operator handles conflicts that remain unresolved.' },
 } as const
 
 function initialEdits(kase: CaseResponse): Edits {

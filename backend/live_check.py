@@ -44,11 +44,17 @@ def main():
                 client.post(f'/api/applications/{app_id}/verify-email', json={'code': code}, headers=headers).raise_for_status()
                 app.state.service.run_one()
                 case = app.state.service.case(app_id)
+                initial_state = case['state']
+                if (case.get('clarification') or {}).get('status') == 'pending':
+                    client.post(f'/api/applications/{app_id}/responses', headers=headers,
+                        json={'facts': {'founding_year': year}, 'text': 'Synthetic test: we reassert the founding year to exercise persistent-conflict escalation.',
+                              'attestation_accepted': True}).raise_for_status()
+                    case = app.state.service.case(app_id)
                 if case['state'] == 'ENROLLED':
                     for _ in range(2):
                         client.post(f'/api/applications/{app_id}/usage', headers={**headers, 'Idempotency-Key': 'live-same-usage'},
                             json={'amount_cents': 100, 'description': 'Synthetic sample job'}).raise_for_status()
-                cases.append({'domain': domain, 'state': case['state'], 'research': case['research'],
+                cases.append({'domain': domain, 'initial_state': initial_state, 'state': case['state'], 'clarification': case.get('clarification'), 'research': case['research'],
                     'tool_calls': case['tool_calls'], 'credits': app.state.service.credits(app_id),
                     'model_runs': case['model_runs'], 'snapshot_count': len(case['decisions'])})
             output['cases'] = cases

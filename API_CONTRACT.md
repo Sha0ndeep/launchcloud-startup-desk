@@ -70,3 +70,14 @@ source type, match status, tool-call reference, support label and nullable sourc
 Case responses add immutable `decisions` (policy/fact/check/evidence snapshots) and `model_runs`(model/outcome/latency/token-count telemetry without raw prompts). Program adds `ledger_reconciled`.
 Health adds `model_provider` and `model`; `model_configured` reports configuration, not live validation.
 Historical records without the added provenance metadata remain readable.
+
+### Automatic conflict clarification
+
+An initial policy-evidence conflict uses `AWAITING_APPLICANT`, with an automatically generated bundled
+request, before any operator exception. Case `clarification` contains `id`, `status` (`pending`, `answered`,
+`resolved`), `fields`, `answered_fields`, `round`, `max_rounds`, `created_at` and nullable `answered_at`.
+Confirmed fact corrections require `attestation_accepted: true` (422 otherwise). The backend re-evaluates
+every reply. Corrected consistent facts proceed automatically; a conflict that persists after its requested
+topic is addressed becomes `EXCEPTION`. Unrelated or partial replies do not prematurely escalate unanswered
+topics. Research retries preserve pending requests. At most two rounds can introduce new conflict topics;
+exhausting this bound requires operator review. There are no real outbound emails in demo mode.

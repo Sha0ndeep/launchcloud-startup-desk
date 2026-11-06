@@ -104,6 +104,9 @@ class WorkflowTests(unittest.TestCase):
         self.fixture.observations = [{'field': 'headcount', 'value': 100, 'note': 'Provider estimate; may include contractors.'}]
         app_id, h = self.verified()
         self.s.run_one()
+        self.assertEqual(self.case(app_id, h)['state'], 'AWAITING_APPLICANT')
+        self.client.post(f'/api/applications/{app_id}/responses', headers=h,
+                         json={'facts': {'headcount': 12}, 'text': 'The provider count includes contractors.', 'attestation_accepted': True})
         self.assertEqual(self.case(app_id, h)['state'], 'EXCEPTION')
         r = self.client.post(f'/api/operator/applications/{app_id}/resolve', headers={'X-Operator-Token': 'demo-operator'},
                              json={'action': 'waive_conflict', 'reason': 'Operator reviewed scope: provider count includes contractors excluded by this policy.'})
@@ -226,6 +229,9 @@ class WorkflowTests(unittest.TestCase):
         self.s.run_one()
         b, hb = self.verified('example.org')
         self.s.run_one()
+        self.assertEqual(self.case(b, hb)['state'], 'AWAITING_APPLICANT')
+        self.client.post(f'/api/applications/{b}/responses', headers=hb,
+                         json={'text': 'Please clarify the company legal entity overlap.', 'attestation_accepted': True})
         self.assertEqual(self.case(b, hb)['state'], 'EXCEPTION')
         r = self.client.post(f'/api/operator/applications/{b}/resolve', headers={'X-Operator-Token': 'demo-operator'},
                              json={'action': 'waive_conflict', 'reason': 'Attempt to bypass company identity reconciliation.'})

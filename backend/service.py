@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from .db import event, evidence, message, now, uid
 from .models import FactCorrections
 from .research import Researcher
+from . import clarification
 
 
 def digest(value):
@@ -110,6 +111,8 @@ class Service:
                 raise HTTPException(409, 'This application cannot accept fact changes in its current state.')
             if row['state'] in {'RESEARCHING', 'RESEARCH_QUEUED'}:
                 raise HTTPException(409, 'Research is running. Wait for its information request before replying.')
+            if changes and not model.attestation_accepted:
+                raise HTTPException(422, 'Re-confirm the eligibility attestation before submitting fact corrections.')
             data = json.loads(row['data_json'])
             data.update(changes)
             if model.attestation_accepted:
@@ -121,6 +124,7 @@ class Service:
             message(c, app_id, 'reply', 'Applicant response', model.text or 'Structured facts updated.', direction='inbound')
             c.execute('UPDATE applications SET data_json=?,updated_at=?,conflict_waiver=NULL WHERE id=?', (json.dumps(data), now(), app_id))
             event(c, app_id, 'applicant_replied', 'Recorded accepted structured corrections and source links.')
+            clarification.record_reply(c, app_id, changes, model.text, model.source_urls, model.attestation_accepted)
             self.evaluate(c, app_id)
         return self.case(app_id)
 
@@ -199,24 +203,29 @@ class Service:
         add('product', 'PASS' if kind == 'software' else 'FAIL' if kind == 'other' else 'NEEDS_INFORMATION',
             'Software-product declaration accepted.' if kind == 'software' else 'Program is for software products.' if kind == 'other' else 'Confirm whether the business provides a software product.', ['product_kind'])
 
-        conflicts = []
+        conflicts, conflict_fields = [], set()
         for e in ev:
             if e['kind'] != 'PROVIDER_OBSERVATION':
                 continue
             v, field = json.loads(e['value_json']), e['field']
             if field == 'identity_conflict':
                 conflicts.append('Provider returned multiple company candidates.')
+                conflict_fields.add('identity')
             if field == 'funding_usd' and isinstance(v, (int, float)) and v > 0 and data.get(field) is not None:
                 if v >= p['funding_max_usd_exclusive'] > data[field]:
                     conflicts.append('External funding observation crosses the eligibility cap; clarify its date, entity and scope.')
+                    conflict_fields.add('funding_usd')
             if field == 'founding_year' and v is not None and data.get(field) is not None and v != data[field]:
                 conflicts.append('Provider founding year differs from the declaration; clarify the meaning and source.')
+                conflict_fields.add('founding_year')
             if field == 'headcount' and isinstance(v, (int, float)) and data.get(field) is not None and v >= p['headcount_max_exclusive'] > data[field]:
                 conflicts.append('Provider workforce count crosses the cap; clarify dates and employee/contractor definitions.')
+                conflict_fields.add('headcount')
         if row['company_provider_id']:
             other = c.execute('SELECT domain FROM accounts WHERE provider_id=? AND domain!=?', (row['company_provider_id'], data['domain'])).fetchone()
             if other:
                 conflicts.append('Provider identity overlaps an existing account on another domain; confirm legal entity before issuing.')
+                conflict_fields.add('identity')
         add('external_consistency', 'PASS' if not conflicts or row['conflict_waiver'] else 'CONFLICT',
             'Operator resolved external observation conflict: ' + row['conflict_waiver'] if row['conflict_waiver'] else
             '; '.join(conflicts) if conflicts else 'No material conflict observed in available records. This is not a completeness guarantee.',
@@ -225,12 +234,18 @@ class Service:
             'Bounded external checks completed; declarations remain labeled.' if research['status'] == 'complete'
             else 'External research is incomplete. Operator must restore research; applicant declarations cannot bypass this check.')
         c.execute('UPDATE applications SET checks_json=?,decision_revision=decision_revision+1,updated_at=? WHERE id=?', (json.dumps(checks), now(), app_id))
+        if not conflicts:
+            clarification.resolve(c, app_id)
         if any(x['status'] == 'FAIL' for x in checks):
             self.set_state(c, app_id, 'DECLINED', 'Application does not meet: ' + ', '.join(x['rule'] for x in checks if x['status'] == 'FAIL'))
             message(c, app_id, 'decision', 'Startup program decision', '\n'.join(x['reason'] for x in checks if x['status'] == 'FAIL'))
         elif conflicts and not row['conflict_waiver']:
-            self.set_state(c, app_id, 'EXCEPTION', '; '.join(conflicts))
-            message(c, app_id, 'information_request', 'Clarification needed', '; '.join(conflicts))
+            if clarification.route(c, app_id, conflict_fields, conflicts, checks, data, ev):
+                self.set_state(c, app_id, 'EXCEPTION', 'Conflict persists after automatic clarification: ' + '; '.join(conflicts))
+                message(c, app_id, 'review_notice', 'Your application needs operator review',
+                        'The discrepancy remains unresolved after clarification. An operator will review the evidence. No credits have been issued.')
+            else:
+                self.set_state(c, app_id, 'AWAITING_APPLICANT', 'Automatic clarification requested; operator review is not needed yet.')
         elif any(x['status'] == 'NEEDS_INFORMATION' for x in checks):
             self.set_state(c, app_id, 'AWAITING_APPLICANT', 'Waiting for accepted missing information or restored research.')
             body = '\n'.join(x['reason'] for x in checks if x['status'] == 'NEEDS_INFORMATION')
@@ -308,6 +323,7 @@ class Service:
         for decision in result['decisions']:
             decision.pop('snapshot_json')
         result['model_runs'] = [dict(r) for r in c.execute('SELECT model,purpose,outcome,latency_ms,usage_json,created_at FROM model_runs WHERE application_id=? ORDER BY rowid', (app_id,))]
+        result['clarification'] = clarification.view(c, app_id)
         return result
 
     def credits(self, app_id, c=None):

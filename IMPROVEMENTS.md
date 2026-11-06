@@ -31,7 +31,11 @@ additive and preserve existing applications, grants and usage. Make a SQLite bac
 - Investigation first resolves the submitted domain, then searches specifically for unresolved founding-year,
   headcount, funding or identity questions. Complete consistent cases skip follow-up searches. Search leads
   never become financial facts or automatically fill declarations. Company mismatches and ambiguous matches
-  become identity exceptions. Conflicts stop for operator resolution.
+  trigger automatic clarification first. A corrected reply is re-evaluated without an operator. Only a
+  conflict that remains after the requested clarification is addressed escalates to operator review.
+  Unrelated or partial replies keep the unresolved questions pending. Requests and answered topics persist
+  across restarts; retries do not create duplicate requests. At most two automatic rounds may introduce new
+  conflict topics. Identity collisions still cannot be waived into a second grant.
 - Bounds: at most 3 rounds (currently up to 2 are used), 5 calls per round, 10 recorded calls across durable
   attempts, 25 estimated Crustdata credits, a 100-second start deadline plus at most one 35-second in-flight
   call. The worker lease is 180 seconds. Transient provider retries remain separately bounded to 3 attempts.
@@ -59,7 +63,7 @@ npm run build
 npm run lint
 ```
 
-All 36 backend tests pass; frontend production build (including typecheck) and lint pass.
+All 43 backend tests pass; frontend production build (including typecheck) and lint pass.
 Unit tests use fake providers and temporary databases, with no live keys or external spending.
 The opt-in provider check uses configured keys and makes bounded real calls:
 
@@ -70,7 +74,8 @@ The opt-in provider check uses configured keys and makes bounded real calls:
 Observed live results on 6 November 2026: Groq headcount extraction returned 12 with an exact supporting
 quote; Acyclic research completed and the synthetic test case enrolled; two identical $1 usage requests left
 $499 and one debit; Adside's synthetic founding-year conflict triggered a successful Groq planning call,
-targeted Crustdata search and `EXCEPTION` with no grant. Ledger reconciliation passed. These declarations are
+targeted Crustdata search and `EXCEPTION` with no grant in the original test. The updated workflow first
+requests automatic clarification and escalates only if the conflict persists after a reply. Ledger reconciliation passed. These declarations are
 test inputs, not claims about these companies, their funding or authority to represent them.
 
 ## Remaining future scope
