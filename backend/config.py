@@ -8,19 +8,21 @@ class Settings:
     demo_mode: bool = True
     operator_token: str = 'demo-operator'
     crustdata_api_key: str = ''
-    anthropic_api_key: str = ''
-    anthropic_model: str = ''
+    groq_api_key: str = ''
+    groq_model: str = 'openai/gpt-oss-120b'
     cors_origins: tuple[str, ...] = ('http://localhost:5173', 'http://127.0.0.1:5173')
 
     @classmethod
     def from_env(cls):
+        from .environment import load_local_env
+        load_local_env()
         return cls(
             database_path=os.getenv('DATABASE_PATH', cls.database_path),
             demo_mode=os.getenv('DEMO_MODE', 'true').lower() == 'true',
             operator_token=os.getenv('OPERATOR_TOKEN', 'demo-operator'),
             crustdata_api_key=os.getenv('CRUSTDATA_API_KEY', ''),
-            anthropic_api_key=os.getenv('ANTHROPIC_API_KEY', ''),
-            anthropic_model=os.getenv('ANTHROPIC_MODEL', ''),
+            groq_api_key=os.getenv('GROQ_API_KEY', ''),
+            groq_model=os.getenv('GROQ_MODEL', cls.groq_model),
             cors_origins=tuple(os.getenv('CORS_ORIGINS', ','.join(cls.cors_origins)).split(',')),
         )
 

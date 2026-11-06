@@ -18,6 +18,17 @@ def uid():
 
 SCHEMA = '''
 PRAGMA journal_mode=WAL;
+CREATE TABLE IF NOT EXISTS evidence_details (evidence_id TEXT PRIMARY KEY, details_json TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS tool_call_details (tool_call_id TEXT PRIMARY KEY, details_json TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS model_runs (
+ id TEXT PRIMARY KEY, application_id TEXT NOT NULL, model TEXT NOT NULL, purpose TEXT NOT NULL,
+ outcome TEXT NOT NULL, latency_ms INTEGER NOT NULL, usage_json TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS policy_versions (version TEXT PRIMARY KEY, policy_json TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS decision_snapshots (
+ id TEXT PRIMARY KEY, application_id TEXT NOT NULL, policy_version TEXT NOT NULL,
+ snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS program (
  id TEXT PRIMARY KEY, name TEXT NOT NULL, policy_version TEXT NOT NULL,
  policy_json TEXT NOT NULL, benefit_cents INTEGER NOT NULL,
@@ -93,6 +104,7 @@ class Database:
             c.executescript(SCHEMA)
             c.execute('INSERT OR IGNORE INTO program VALUES (?,?,?,?,?,?,?)',
                       ('launchcloud', 'LaunchCloud Startup Program', 'v1', json.dumps(POLICY), 50000, 5000000, 0))
+            c.execute('INSERT OR IGNORE INTO policy_versions SELECT policy_version,policy_json FROM program')
 
     def connect(self):
         c = sqlite3.connect(self.path, timeout=15, isolation_level=None, factory=ClosingConnection)
@@ -119,13 +131,23 @@ def event(c, app_id, kind, detail):
     c.execute('INSERT INTO events VALUES (?,?,?,?,?)', (uid(), app_id, kind, detail, now()))
 
 
-def evidence(c, app_id, field, value, kind, source_url=None, source_pointer=None, observed_at=None, note=''):
+def evidence(c, app_id, field, value, kind, source_url=None, source_pointer=None, observed_at=None, note='',
+             tool_call_id=None, source_type=None, match_status=None):
     eid = uid()
     c.execute('INSERT INTO evidence VALUES (?,?,?,?,?,?,?,?,?,?)',
               (eid, app_id, field, json.dumps(value), kind, source_url, source_pointer, observed_at, now(), note))
+    c.execute('INSERT INTO evidence_details VALUES (?,?)', (eid, json.dumps({
+        'tool_call_id': tool_call_id, 'source_type': source_type or ('applicant_declaration' if kind == 'APPLICANT_DECLARATION' else 'provider_observation' if kind == 'PROVIDER_OBSERVATION' else 'applicant_supplied'),
+        'match_status': match_status, 'source_published_at': None,
+        'fact_status': 'declared' if kind == 'APPLICANT_DECLARATION' else 'externally_supported' if field != 'public_source_lead' else 'unverified_lead',
+    })))
     return eid
 
 
 def message(c, app_id, kind, subject, body, payload=None, direction='outbound'):
+    if kind == 'information_request' and direction == 'outbound':
+        previous = c.execute("SELECT subject,body FROM messages WHERE application_id=? AND kind='information_request' AND direction='outbound' ORDER BY rowid DESC LIMIT 1", (app_id,)).fetchone()
+        if previous and previous['subject'] == subject and previous['body'] == body:
+            return
     c.execute('INSERT INTO messages VALUES (?,?,?,?,?,?,?,?)',
               (uid(), app_id, direction, kind, subject, body, json.dumps(payload or {}), now()))

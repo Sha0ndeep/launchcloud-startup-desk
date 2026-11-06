@@ -303,6 +303,69 @@
         }
       }
     },
+    "/api/applications/{app_id}/extract": {
+      "post": {
+        "summary": "Extract",
+        "operationId": "extract_api_applications__app_id__extract_post",
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "App Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/applications/{app_id}/report": {
       "get": {
         "summary": "Report",
@@ -853,6 +916,21 @@
           "product_description"
         ],
         "title": "ApplicationInput"
+      },
+      "ExtractionInput": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ExtractionInput"
       },
       "FactCorrections": {
         "properties": {

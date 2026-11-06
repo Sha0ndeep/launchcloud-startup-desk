@@ -20,7 +20,7 @@ In another terminal, set the same `DATABASE_PATH` and `CRUSTDATA_API_KEY`, then:
 python -m backend.worker
 ```
 
-Set `DATABASE_PATH` on both processes to the same absolute path if they have different working directories. `.env.example` documents environment variables; the server does not implicitly load `.env` files. No credentials are embedded in source.
+Set `DATABASE_PATH` on both processes to the same absolute path if they have different working directories. `.env.example` documents environment variables; the server loads only the git-ignored root `.env.local`; shell values take precedence. No credentials are embedded in source.
 
 Health: http://127.0.0.1:8000/api/health. Interactive API reference: http://127.0.0.1:8000/docs. OpenAPI: http://127.0.0.1:8000/openapi.json.
 
@@ -33,7 +33,7 @@ Default CORS origins are localhost/127.0.0.1 port 5173. Override `CORS_ORIGINS` 
 - Separate durable worker with job leases and restart recovery.
 - Direct read-only Crustdata company enrichment and targeted web search with bounded estimated spend and a 24-hour cache.
 - Source-linked provider observations, applicant declarations, per-rule checks and activity history.
-- Structured applicant corrections and optional quote-validated numeric extraction from replies through Anthropic (requires both ANTHROPIC_API_KEY and ANTHROPIC_MODEL).
+- Structured applicant corrections and optional quote-validated numeric extraction previews through Groq (requires GROQ_API_KEY; GROQ_MODEL defaults to openai/gpt-oss-120b).
 - Declarative eligibility policy, conflicts/clarification, supported declines and an operator exception route.
 - Transactional product-credit issuance, budget enforcement, same-domain duplicate handling, idempotent product consumption.
 - JSON case export and actual product-credit balance.

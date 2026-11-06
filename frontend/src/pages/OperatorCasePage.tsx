@@ -147,6 +147,13 @@ export function OperatorCasePage({ applicationId, auth }: { applicationId: strin
           <Card title="Policy checks" subtitle="Per-rule outcomes with the evidence ids each one cites.">
             <ChecksTable checks={data.checks} onShowEvidence={showEvidence} />
           </Card>
+          {data.decisions && data.decisions.length > 0 && <Card title="Decision history" subtitle="Immutable policy and evidence snapshots for each evaluation.">
+            {data.decisions.map(decision => <details key={decision.id}>
+              <summary>{decision.snapshot.outcome} · policy {decision.policy_version} · {formatDateTime(decision.created_at)}</summary>
+              {decision.snapshot.operator_reason && <p>Operator reason: {decision.snapshot.operator_reason}</p>}
+              <ChecksTable checks={decision.snapshot.checks} onShowEvidence={showEvidence} />
+            </details>)}
+          </Card>}
 
           <Card title="Applicant conversation" subtitle="Messages recorded by the backend. An outbound row proves the message was queued, not delivered.">
             <MessageThread messages={data.messages} />

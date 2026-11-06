@@ -43,7 +43,7 @@ export function BackendStatusChip() {
             {health.demo_mode ? 'Demo mode · simulated mailbox' : 'Non-demo mode'}
           </Badge>
           <Badge tone={health.research_mode === 'live' ? 'accent' : 'neutral'}>Research: {health.research_mode}</Badge>
-          <Badge tone="neutral">{health.model_configured ? 'Extraction model: configured' : 'Extraction model: none'}</Badge>
+          <Badge tone="neutral" title={health.model}>{health.model_configured ? `Extraction: ${health.model_provider ?? 'configured'}` : 'Extraction model: none'}</Badge>
         </>
       )}
     </div>

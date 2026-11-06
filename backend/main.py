@@ -9,6 +9,12 @@ from .config import Settings
 from .db import Database, event, message, now
 from .models import ApplicationInput, ResolutionInput, ResponseInput, UsageInput, VerificationInput
 from .service import Service, TERMINAL
+from .llm import extract_candidates, GroqProvider
+from pydantic import BaseModel, Field
+
+
+class ExtractionInput(BaseModel):
+    text: str = Field(min_length=1, max_length=10000)
 
 
 def create_app(settings=None, researcher=None):
@@ -45,7 +51,8 @@ def create_app(settings=None, researcher=None):
     def health():
         return {'status': 'ok', 'demo_mode': settings.demo_mode,
                 'research_mode': 'live' if settings.crustdata_api_key else 'unconfigured',
-                'model_configured': bool(settings.anthropic_api_key and settings.anthropic_model), 'worker_required': True}
+                'model_configured': bool(settings.groq_api_key), 'model_provider': 'groq',
+                'model': settings.groq_model, 'worker_required': True}
 
     @app.get('/api/program')
     def program():
@@ -69,6 +76,18 @@ def create_app(settings=None, researcher=None):
     def respond(app_id: str, body: ResponseInput, authorization: str | None = Header(default=None)):
         auth(app_id, authorization, None, True)
         return service.response(app_id, body)
+
+    @app.post('/api/applications/{app_id}/extract')
+    def extract(app_id: str, body: ExtractionInput, authorization: str | None = Header(default=None)):
+        auth(app_id, authorization, None, True)
+        case = service.case(app_id)
+        if not case['email_verified'] or case['state'] in TERMINAL:
+            raise HTTPException(409, 'Extraction is available only for verified, active cases.')
+        with db.connect() as c:
+            count = c.execute("SELECT COUNT(*) FROM model_runs WHERE application_id=? AND purpose='extract_facts'", (app_id,)).fetchone()[0]
+        if count >= 10:
+            raise HTTPException(429, 'Extraction attempt limit reached. Use structured corrections.')
+        return extract_candidates(settings, body.text, GroqProvider(settings, db, app_id))
 
     @app.get('/api/applications/{app_id}/report')
     def report(app_id: str, authorization: str | None = Header(default=None), x_operator_token: str | None = Header(default=None)):

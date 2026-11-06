@@ -30,6 +30,7 @@ export type Auth = ApplicantAuth | OperatorAuth
  * implementation can be swapped for the labeled fixture client (see ./mock.ts) or a future one.
  */
 export interface ApiClient {
+  extractReply?(applicationId: string, text: string, auth: ApplicantAuth): Promise<{status: string; candidates: Array<{field: 'founding_year' | 'headcount' | 'funding_usd'; value: number; quote: string}>}>
   health(): Promise<Health>
   program(): Promise<Program>
   createApplication(input: ApplicationInput, opts: { idempotencyKey: string }): Promise<ApplicationCreated>
@@ -153,6 +154,10 @@ export class HttpApiClient implements ApiClient {
 
   respond(applicationId: string, input: ApplicantResponse, auth: ApplicantAuth) {
     return this.request<CaseResponse>(this.appPath(applicationId, '/responses'), { method: 'POST', body: input, auth })
+  }
+
+  extractReply(applicationId: string, text: string, auth: ApplicantAuth) {
+    return this.request<{status: string; candidates: Array<{field: 'founding_year' | 'headcount' | 'funding_usd'; value: number; quote: string}>}>(this.appPath(applicationId, '/extract'), {method: 'POST', body: {text}, auth})
   }
 
   getReport(applicationId: string, auth: Auth) {

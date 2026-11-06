@@ -33,7 +33,7 @@ another port, or add the new origin to the backend's `CORS_ORIGINS`.
 
 The backend is a Python package named `backend`; run it from the directory that contains `backend/` so the
 package imports resolve. It needs Python 3.12+ with `fastapi`, `uvicorn`, `pydantic` and `httpx`
-(`backend/requirements.txt`). The server does not load `.env` files; set variables in the shell.
+(`backend/requirements.txt`). The server loads the git-ignored root `.env.local`; shell variables take precedence.
 
 ```bash
 DEMO_MODE=true OPERATOR_TOKEN=demo-operator DATABASE_PATH=/tmp/launchcloud.sqlite3 python -m uvicorn backend.main:create_app --factory --host 127.0.0.1 --port 8000

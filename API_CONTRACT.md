@@ -47,3 +47,26 @@ States: AWAITING_EMAIL, RESEARCH_QUEUED, RESEARCHING, AWAITING_APPLICANT, EXCEPT
 `grant`, when present: `{id,amount_cents,created_at}`. Case includes `account_id` when provisioned or linked to an existing authorized company account.
 
 Errors use FastAPI's `{detail: string|array}`. Display them; do not fabricate fallback verdicts. Optional new fields may be added; existing required fields/routes will remain stable unless both owners agree.
+
+
+## Roadmap additions (backward-compatible v1 extensions)
+
+`POST /api/applications/{id}/extract` takes `{ "text": "We have 12 full-time employees." }`,
+with applicant bearer authorization. Only verified active cases may preview extraction. It returns
+`{status, candidates: [{field, value, quote}], requires_confirmation: true}`. This endpoint does not
+change facts, checks, decisions or balances. The applicant must review candidates and explicitly submit
+confirmed structured facts through `/responses` with the eligibility attestation. Plain free text is
+recorded unchanged but never automatically applied to numeric facts. At most ten model attempts per
+case are permitted for extraction; provider retries consume that allowance. Model errors return an
+empty candidate list with a status, so structured corrections remain usable.
+
+`Research` adds `plan`, `rounds`, `planner_status`, `unresolved_facts`, `conflicting_facts`, `limits`
+and `stop_reason`. Research may complete with unresolved declaration requirements or an operator
+conflict; completion means bounded research finished, not that eligibility passed. Search snippets
+are leads and cannot fill funding/headcount declarations. Missing or mismatched company identity
+requires operator resolution. Tool calls add purpose, arguments, round and latency. Evidence adds
+source type, match status, tool-call reference, support label and nullable source publication date.
+
+Case responses add immutable `decisions` (policy/fact/check/evidence snapshots) and `model_runs`(model/outcome/latency/token-count telemetry without raw prompts). Program adds `ledger_reconciled`.
+Health adds `model_provider` and `model`; `model_configured` reports configuration, not live validation.
+Historical records without the added provenance metadata remain readable.

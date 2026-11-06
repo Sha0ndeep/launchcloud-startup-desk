@@ -23,6 +23,10 @@ function EvidenceCard({ item, highlighted }: { item: Evidence; highlighted: bool
         <strong>{formatEvidenceValue(item)}</strong>
       </p>
       <dl className="evidence-meta">
+        {item.source_type && <><dt>Provenance</dt><dd>{item.source_type.replaceAll('_', ' ')}</dd></>}
+        {item.fact_status && <><dt>Support</dt><dd>{item.fact_status.replaceAll('_', ' ')}</dd></>}
+        {item.match_status && <><dt>Identity match</dt><dd>{item.match_status.replaceAll('_', ' ')}</dd></>}
+        {item.tool_call_id && <><dt>Research call</dt><dd className="mono">{item.tool_call_id}</dd></>}
         {item.source_url && (
           <>
             <dt>Source</dt>

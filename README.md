@@ -22,9 +22,42 @@ declarations, and nothing claims to be independently verified payroll or funding
 
 ## Run it locally
 
+The roadmap implementation is described in [IMPROVEMENTS.md](IMPROVEMENTS.md): Groq candidate extraction,
+bounded adaptive investigation, evidence provenance, immutable decision snapshots and ledger reconciliation.
+
+### Windows quick start
+
+With Python 3.12+ and Node.js 22.12+ installed, double-click `start.cmd`, or run from PowerShell:
+
+```powershell
+python run.py
+```
+
+The launcher creates an isolated `.venv`, installs missing dependencies, and starts the real API, durable
+worker and frontend together. It opens http://127.0.0.1:5173 after both HTTP servers are ready. Keep the
+terminal open; Ctrl+C stops all three processes. Logs are in `.local/logs/`. If either port 8000 or 5173 is
+occupied, the launcher reports it without stopping another application's process. Existing dependencies can
+be refreshed with `python run.py --install`; use `--no-browser` to skip opening a browser. The launcher also
+works on macOS/Linux.
+
+If a LaunchCloud API **and its worker** are already running on this machine, connect the frontend to them
+with `python run.py --reuse-api`. This checks API health and starts only the frontend; stopping the launcher
+preserves the existing backend processes. For a separate backend, use `python run.py --api-port 8001`
+and set `DATABASE_PATH` to a different SQLite file in the launching shell.
+
+The operator token is `demo-operator` unless you set `OPERATOR_TOKEN` in the launching shell. The API and
+worker inherit the same shell configuration and database path. To enable live research, set
+`CRUSTDATA_API_KEY` privately in that shell before launching. No key is needed to explore the interface,
+submit applications, use the simulated mailbox, or inspect research holds. Eligible cases remain held until
+live research is configured; this launcher does not enable frontend fixtures or stub research.
+
+Verified on Windows with Python 3.13.7 and Node.js 22.20.0: all 20 backend tests, frontend typecheck,
+production build and lint pass. The separate commands below remain available for development.
+
+### Manual setup
+
 Prerequisites: Python 3.12 or newer (tested with 3.14.8) and Node.js 22.12 or newer (tested with 24.19).
-All commands run from the repository root. The backend reads configuration from the shell, not from `.env`
-files; `backend/.env.example` lists the variables.
+All commands run from the repository root. The backend reads configuration from the shell and the git-ignored root `.env.local`; `backend/.env.example` lists the variables.
 
 Install the backend dependencies once:
 
@@ -58,11 +91,11 @@ Optional environment variables:
 | Variable | Effect |
 | --- | --- |
 | `CRUSTDATA_API_KEY` | Enables live company research. Without it the backend reports `research_mode: unconfigured` and holds every otherwise-eligible case on its `research` check until an operator restores research and requeues it. No synthetic provider data is ever inserted. |
-| `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` | Both together enable quote-validated numeric extraction from free-text applicant replies. Extraction never makes eligibility decisions. |
+| `GROQ_API_KEY` and `GROQ_MODEL` | Optional Groq planning and quote-backed extraction previews. Model defaults to `openai/gpt-oss-120b`. Applicants review and confirm structured candidates before any facts change. |
 | `DATABASE_PATH` | SQLite file, default `backend/data/launchcloud.sqlite3` (created on first run). |
 | `CORS_ORIGINS` | Comma-separated frontend origins, default `http://localhost:5173,http://127.0.0.1:5173`. |
 
-Secrets stay in the shell. The frontend never reads the Crustdata key, model keys or the operator token from
+Secrets stay in the shell or git-ignored root `.env.local`. The frontend never reads the Crustdata key, model keys or the operator token from
 its build; only `VITE_`-prefixed public variables reach the bundle (`frontend/.env.example`).
 
 ## Demo walkthrough
@@ -96,7 +129,7 @@ waived and must be reconciled or declined.
 
 | Check | Command | Result on 6 November 2026 |
 | --- | --- | --- |
-| Backend unit tests | `python -m unittest discover -s backend/tests -v` | 20 passed (Python 3.14.8) |
+| Backend unit tests | `python -m unittest discover -s backend/tests -v` | 36 passed (Python 3.13.7, roadmap implementation) |
 | Frontend typecheck | `cd frontend && npm run typecheck` | pass |
 | Frontend lint | `cd frontend && npm run lint` | pass |
 | Frontend build | `cd frontend && npm run build` | pass |
@@ -106,8 +139,10 @@ The backend tests cover issuance, duplicate prevention, budget enforcement, job 
 backend and against the stub harness, with screenshots in `frontend/docs/screenshots/`, plus the list of
 contract-versus-backend differences.
 
-Not verified: live Crustdata research (no key was available during the build), the optional extraction model,
-and budget exhaustion against the real backend.
+The original build did not test live providers. The roadmap implementation has now passed an opt-in live
+Crustdata and Groq check: a clean enrollment, a founding-year conflict held for operator review, quote-backed
+candidate extraction, and an idempotent debit to $499. These used synthetic applicant declarations and a
+temporary database. Groq account billing/free-plan status has not been verified. See [IMPROVEMENTS.md](IMPROVEMENTS.md).
 
 ## Supported scope and honest limits
 

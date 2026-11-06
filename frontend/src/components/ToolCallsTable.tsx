@@ -32,7 +32,7 @@ export function ToolCallsTable({ toolCalls }: { toolCalls: ToolCall[] }) {
                   <Badge tone={ok ? 'success' : 'warning'}>{call.status}</Badge>
                 </td>
                 <td>{formatResearchCredits(call.credits_estimate)}</td>
-                <td>{call.detail}</td>
+                <td>{call.purpose && <p><strong>Round {call.round}:</strong> {call.purpose}</p>}{call.detail}{call.latency_ms !== undefined && <p className="muted">{call.latency_ms} ms</p>}</td>
                 <td className="muted">{formatDateTime(call.created_at)}</td>
               </tr>
             )

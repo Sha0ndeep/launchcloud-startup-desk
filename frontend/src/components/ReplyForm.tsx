@@ -89,6 +89,8 @@ export function ReplyForm({ kase, auth, modelConfigured, onCase, context = 'requ
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState<ApiError | null>(null)
   const [busy, setBusy] = useState(false)
+  const [preview, setPreview] = useState<Array<{field: string; value: number; quote: string}>>([])
+  const [extractionStatus, setExtractionStatus] = useState('')
   const requested = requestedFacts(kase.checks)
   const copy = COPY[context]
 
@@ -160,6 +162,8 @@ export function ReplyForm({ kase, auth, modelConfigured, onCase, context = 'requ
       setText('')
       setUrls([''])
       setAttestation(false)
+      setPreview([])
+      setExtractionStatus('')
     } catch (err) {
       const apiErr = toApiError(err)
       setError(apiErr)
@@ -267,6 +271,25 @@ export function ReplyForm({ kase, auth, modelConfigured, onCase, context = 'requ
       <Field id={`${idBase}-text`} label="Explanation" hint="Describe definitions, dates or entity details that explain the numbers (for example contractors vs. full-time, or a different legal entity). Recorded as your message." error={fieldErrors.text}>
         <textarea id={`${idBase}-text`} className="textarea" rows={4} value={text} onChange={(e) => setText(e.target.value)} maxLength={LIMITS.replyText.max} aria-describedby={describedBy(`${idBase}-text`, true, !!fieldErrors.text)} />
       </Field>
+
+      {modelConfigured && api.extractReply && <div className="stack-sm">
+        <Button disabled={busy || !text.trim()} onClick={async () => {
+          setBusy(true)
+          setError(null)
+          setAttestation(false)
+          try {
+            const result = await api.extractReply!(kase.id, text, auth)
+            setPreview(result.candidates)
+            setExtractionStatus(result.status)
+            for (const item of result.candidates) setEdit(item.field, {mode: 'set', value: String(item.value)})
+          } catch (err) { setError(toApiError(err)) } finally { setBusy(false) }
+        }}>Suggest corrections from explanation</Button>
+        {extractionStatus && <Notice tone="info" title="Review model suggestions before sending">
+          <p>Status: {extractionStatus.replaceAll('_', ' ')}. Suggestions fill the fields above; review them and re-confirm the attestation before sending. No case facts have changed.</p>
+          {preview.map(item => <p key={item.field}>{item.field}: {item.value} — “{item.quote}”</p>)}
+          {preview.length === 0 && <p>No supported candidates. Use the structured fields.</p>}
+        </Notice>}
+      </div>}
 
       <fieldset className="fieldset">
         <legend>Supporting source links (optional, up to {LIMITS.sourceUrls.max})</legend>

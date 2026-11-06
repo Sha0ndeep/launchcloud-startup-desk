@@ -74,6 +74,7 @@ export function ProgramPolicyCard({ program, error, loading, showAllocation = fa
           />
         </div>
       )}
+      {showAllocation && program.ledger_reconciled !== undefined && <p className="muted">Demo ledger reconciliation: {program.ledger_reconciled ? 'balances match all grant and usage entries' : 'mismatch requires operator investigation'}.</p>}
     </Card>
   )
 }

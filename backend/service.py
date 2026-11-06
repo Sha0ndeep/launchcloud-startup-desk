@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from .db import event, evidence, message, now, uid
 from .models import FactCorrections
-from .research import Researcher, extract_reply
+from .research import Researcher
 
 
 def digest(value):
@@ -36,6 +36,9 @@ class Service:
         row['policy'] = json.loads(row.pop('policy_json'))
         row['currency'] = 'USD'
         row['remaining_cents'] = row['budget_cents'] - row['allocated_cents']
+        row['ledger_reconciled'] = not c.execute('''SELECT 1 FROM accounts a WHERE a.balance_cents !=
+            COALESCE((SELECT SUM(amount_cents) FROM grants WHERE account_id=a.id),0) -
+            COALESCE((SELECT SUM(amount_cents) FROM usage WHERE account_id=a.id),0) LIMIT 1''').fetchone()
         return row
 
     def authorize(self, app_id, token, operator=None, applicant_only=False):
@@ -100,12 +103,7 @@ class Service:
 
     def response(self, app_id, model):
         changes = model.facts.model_dump(exclude_unset=True, exclude_none=True)
-        if not changes and model.text:
-            raw = extract_reply(self.settings, model.text)
-            try:
-                changes = FactCorrections.model_validate(raw).model_dump(exclude_none=True)
-            except ValueError:
-                changes = {}
+        # Model candidates are previewed separately. Only applicant-confirmed structured facts mutate the case.
         with self.db.transaction() as c:
             row = c.execute('SELECT * FROM applications WHERE id=?', (app_id,)).fetchone()
             if not row['email_verified'] or row['state'] in TERMINAL:
@@ -133,8 +131,8 @@ class Service:
                 OR (status='running' AND lease_until<?) ORDER BY available_at LIMIT 1''', (time.time(), time.time())).fetchone()
             if not job:
                 return False
-            # Research can take two bounded 35s calls; lease exceeds the maximum runtime.
-            c.execute("UPDATE jobs SET status='running',lease_owner=?,lease_until=?,attempts=attempts+1 WHERE id=?", (owner, time.time() + 120, job['id']))
+            # Investigation has a 100s start deadline plus one in-flight 35s call.
+            c.execute("UPDATE jobs SET status='running',lease_owner=?,lease_until=?,attempts=attempts+1 WHERE id=?", (owner, time.time() + 180, job['id']))
             app = c.execute('SELECT * FROM applications WHERE id=?', (job['application_id'],)).fetchone()
             if app['state'] in TERMINAL or not app['email_verified']:
                 c.execute("UPDATE jobs SET status='done',lease_owner=NULL WHERE id=?", (job['id'],))
@@ -152,9 +150,8 @@ class Service:
             if lease['lease_owner'] != owner:
                 return True
             # Replace provider observations, keeping applicant declarations and audit history.
-            c.execute("DELETE FROM evidence WHERE application_id=? AND kind='PROVIDER_OBSERVATION'", (app['id'],))
-            for ob in observations:
-                evidence(c, app['id'], kind='PROVIDER_OBSERVATION', **ob)
+            # Preserve every observation so historical decision snapshots retain valid evidence references.
+            research['evidence_ids'] = [evidence(c, app['id'], kind='PROVIDER_OBSERVATION', **ob) for ob in observations]
             c.execute('UPDATE applications SET research_json=?,company_provider_id=?,updated_at=? WHERE id=?',
                       (json.dumps(research), provider_id, now(), app['id']))
             if research.get('retryable') and job['attempts'] + 1 < 3:
@@ -172,8 +169,12 @@ class Service:
         if row['state'] in TERMINAL or not row['email_verified']:
             return
         data, research, program = json.loads(row['data_json']), json.loads(row['research_json']), self.program(c)
-        p = program['policy']
+        version = c.execute('SELECT policy_json FROM policy_versions WHERE version=?', (row['policy_version'],)).fetchone()
+        p = json.loads(version[0]) if version else program['policy']
         ev = [dict(r) for r in c.execute('SELECT * FROM evidence WHERE application_id=? ORDER BY rowid', (app_id,))]
+        # Previous research remains auditable; only the latest observation for each provider fact evaluates policy.
+        active_ids = research.get('evidence_ids')
+        ev = [e for e in ev if e['kind'] != 'PROVIDER_OBSERVATION' or active_ids is None or e['id'] in active_ids]
         checks = []
         def add(rule, status, reason, fields=()):
             checks.append({'rule': rule, 'status': status, 'reason': reason,
@@ -236,6 +237,10 @@ class Service:
             message(c, app_id, 'information_request', 'Information needed for your startup application', body)
         else:
             self.issue(c, app_id, data, row['company_provider_id'])
+        final = c.execute('SELECT state FROM applications WHERE id=?', (app_id,)).fetchone()[0]
+        c.execute('INSERT INTO decision_snapshots VALUES (?,?,?,?,?)', (uid(), app_id, row['policy_version'],
+            json.dumps({'policy': p, 'facts': data, 'checks': checks, 'outcome': final,
+                        'evidence_ids': [e['id'] for e in ev], 'operator_reason': row['conflict_waiver']}), now()))
 
     def set_state(self, c, app_id, state, detail):
         c.execute('UPDATE applications SET state=?,updated_at=? WHERE id=?', (state, now(), app_id))
@@ -287,10 +292,22 @@ class Service:
                     item.pop('payload_json')  # Verification code only through explicit demo inbox.
                 if table == 'evidence':
                     item['value'] = json.loads(item.pop('value_json'))
+                    detail = c.execute('SELECT details_json FROM evidence_details WHERE evidence_id=?', (item['id'],)).fetchone()
+                    if detail:
+                        item.update(json.loads(detail[0]))
+                if table == 'tool_calls':
+                    detail = c.execute('SELECT details_json FROM tool_call_details WHERE tool_call_id=?', (item['id'],)).fetchone()
+                    if detail:
+                        item.update(json.loads(detail[0]))
                 records.append(item)
             result[table] = records
         grant = c.execute('SELECT id,amount_cents,created_at FROM grants WHERE account_id=?', (row['account_id'],)).fetchone()
         result['grant'] = dict(grant) if grant else None
+        result['decisions'] = [{**dict(r), 'snapshot': json.loads(r['snapshot_json'])}
+            for r in c.execute('SELECT id,policy_version,snapshot_json,created_at FROM decision_snapshots WHERE application_id=? ORDER BY rowid', (app_id,))]
+        for decision in result['decisions']:
+            decision.pop('snapshot_json')
+        result['model_runs'] = [dict(r) for r in c.execute('SELECT model,purpose,outcome,latency_ms,usage_json,created_at FROM model_runs WHERE application_id=? ORDER BY rowid', (app_id,))]
         return result
 
     def credits(self, app_id, c=None):

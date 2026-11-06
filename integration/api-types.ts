@@ -28,6 +28,8 @@ export interface Check {
   reason: string; evidence_ids: string[];
 }
 export interface Evidence {
+  source_type?: string; source_published_at?: string | null; tool_call_id?: string | null;
+  match_status?: string | null; fact_status?: string;
   id: string; field: string; value: unknown;
   kind: 'APPLICANT_DECLARATION' | 'PROVIDER_OBSERVATION' | 'APPLICANT_LINK';
   source_url: string | null; source_pointer: string | null;
@@ -39,15 +41,19 @@ export interface Message {
 }
 export interface Grant { id: string; amount_cents: number; created_at: string }
 export interface Research {
+  stop_reason?: string; rounds?: number; planner_status?: string;
+  unresolved_facts?: string[]; conflicting_facts?: string[];
+  plan?: Array<{round: number; action: string; purpose: string; fact?: string; estimated_cost: number}>;
   status: 'pending' | 'unconfigured' | 'partial' | 'complete' | 'failed';
   configured: boolean; error: string | null; retryable?: boolean; retry_after_seconds?: number;
 }
 export interface CaseResponse {
+  decisions?: Array<{id: string; policy_version: string; created_at: string; snapshot: {outcome: string; facts: unknown; checks: Check[]; operator_reason: string | null}}>;
   id: string; company_name: string; domain: string; work_email: string;
   state: ApplicationState; policy_version: string; email_verified: boolean;
   facts: FactValues; checks: Check[]; evidence: Evidence[]; messages: Message[];
   events: Array<{id: string; type: string; detail: string; created_at: string}>;
-  tool_calls: Array<{id: string; endpoint: string; status: string; credits_estimate: number; detail: string; created_at: string}>;
+  tool_calls: Array<{id: string; endpoint: string; status: string; credits_estimate: number; detail: string; created_at: string; purpose?: string; round?: number; latency_ms?: number}>;
   research: Research; grant: Grant | null; account_id: string | null;
   created_at: string; updated_at: string;
 }
@@ -56,6 +62,7 @@ export interface CreditAccount {
   grants: Grant[]; usage: Array<{id: string; amount_cents: number; created_at: string}>;
 }
 export interface Program {
+  ledger_reconciled?: boolean;
   id: string; name: string; policy_version: string; benefit_cents: number;
   currency: 'USD'; budget_cents: number; allocated_cents: number; remaining_cents: number;
   policy: {founded_year_min: number; headcount_max_exclusive: number;
@@ -68,6 +75,7 @@ export interface ApplicationSummary {
 export interface OperatorQueue {applications: ApplicationSummary[]; program: Program}
 export interface DemoInbox {demo_mode: true; messages: Array<Message & {payload: {code?: string}}>}
 export interface Health {
+  model_provider?: string; model?: string;
   status: 'ok'; demo_mode: boolean; research_mode: 'live' | 'unconfigured';
   model_configured: boolean; worker_required: true;
 }
